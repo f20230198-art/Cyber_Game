@@ -263,6 +263,16 @@ p.sub{color:var(--txt-dim);font-size:14px;line-height:1.55;margin-bottom:16px}
 }
 .lockNote{display:flex;gap:9px;align-items:flex-start;margin-top:11px;
   font-size:12px;color:var(--txt-faint);line-height:1.55}
+/* Long-press inspector - the iOS-reachable route to the same lesson.
+   It strips the real `disabled` attribute, exactly as DevTools would. */
+#picker{margin-top:12px;cursor:pointer;-webkit-user-select:none;user-select:none;
+  padding:8px 0}
+.pkLabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  color:var(--txt-faint);text-transform:uppercase;margin-bottom:7px;text-align:center}
+.pkTrack{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.pkFill{height:100%;width:0;background:var(--acc);border-radius:3px;
+  box-shadow:0 0 10px var(--acc-glow)}
+#picker.done .pkLabel{color:var(--acc)}
 
 /* ============ HINT ============ */
 .hintbtn{
@@ -280,6 +290,20 @@ p.sub{color:var(--txt-dim);font-size:14px;line-height:1.55;margin-bottom:16px}
   display:block;margin-bottom:5px;text-transform:uppercase}
 code{font-family:var(--mono);background:rgba(255,158,61,.14);color:var(--acc-2);
   padding:2px 6px;border-radius:5px;font-size:.88em;word-break:break-all}
+
+/* ============ SOURCE VIEWER ============ */
+.srcbox{background:#0f0d0b;border:1px solid var(--line);border-radius:12px;
+  padding:14px 12px;font-family:var(--mono);font-size:11.5px;line-height:1.75;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  white-space:pre;color:var(--txt-dim);
+  -webkit-user-select:text;user-select:text}
+.srcbox .tg{color:#7fb3d5}
+.srcbox .at{color:#c9a76a}
+.srcbox .st{color:#9ecb8a}
+/* Comments use the same muted grey a real editor gives them - the flag
+   does not get to announce itself with a highlight. */
+.srcbox .cm{color:#5d5348}
+.srcbox .tx{color:var(--txt-dim)}
 
 /* ============ FLAG PAGE ============ */
 #win .body{display:flex;align-items:center;justify-content:center;text-align:center}
@@ -474,7 +498,7 @@ code{font-family:var(--mono);background:rgba(255,158,61,.14);color:var(--acc-2);
     <div class="inner">
       <div class="eyebrow">Stage 03 &mdash; Information Disclosure</div>
       <h1 class="t">Careless Developers</h1>
-      <p class="sub">Nothing on this feed looks like a flag. But developers leave things where users never look.</p>
+      <p class="sub">Nothing on this feed looks like a flag. But developers leave things where users never look &mdash; and the page source is right there.</p>
 
       <div class="post pin">
         <div class="pinTag">&#128204; Pinned by IT</div>
@@ -512,7 +536,26 @@ code{font-family:var(--mono);background:rgba(255,158,61,.14);color:var(--acc-2);
   <div class="act">
     <div class="inner">
       <button class="btn" onclick="G.s3()">VERIFY FLAG</button>
+      <button class="hintbtn" onclick="G.viewSource()">&lt;/&gt; VIEW PAGE SOURCE</button>
       <button class="hintbtn" id="hb3" onclick="G.hint()">Need a hint?</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SOURCE VIEWER (phone-friendly View Source) ===== -->
+<section id="src" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="eyebrow">Viewing page source</div>
+      <h1 class="t">portal.techcorp.internal</h1>
+      <p class="sub">This is what the server actually sent your browser. Everything here was
+        downloaded to your phone &mdash; including the parts that never appear on screen.</p>
+      <div class="srcbox" id="srcBox"></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="btn" onclick="G.go('s3','L')">BACK TO FEED</button>
     </div>
   </div>
 </section>
@@ -523,7 +566,7 @@ code{font-family:var(--mono);background:rgba(255,158,61,.14);color:var(--acc-2);
     <div class="inner">
       <div class="eyebrow">Stage 04 &mdash; Privilege Escalation</div>
       <h1 class="t">The Last Door</h1>
-      <p class="sub">Root lives behind one button. The server would grant it &mdash; but the button is switched off in your browser. The lock is on your side.</p>
+      <p class="sub">Root lives behind one button. The server would grant it &mdash; but the button is switched off in your browser. The lock is on your side, so you can pick it.</p>
 
       <div class="card">
         <div class="corp" style="margin-bottom:14px">
@@ -544,6 +587,10 @@ code{font-family:var(--mono);background:rgba(255,158,61,.14);color:var(--acc-2);
         </div>
 
         <button id="reqAdmin" disabled onclick="G.s4()">REQUEST ROOT ACCESS</button>
+        <div id="picker">
+          <div class="pkLabel" id="pkLabel">Hold to inspect this button</div>
+          <div class="pkTrack"><div class="pkFill" id="pkFill"></div></div>
+        </div>
         <div class="lockNote">
           <i class="emoji">&#128274;</i>
           <span>Elevation requires <b>Tier-4 clearance</b>. This control is disabled for your account.</span>
@@ -899,6 +946,54 @@ s2:function(){
 },
 
 /* ---------- STAGE 3 : RECON ---------- */
+/* Phone-friendly View Source. iOS Safari blocks the view-source: scheme
+   entirely, so this renders the same thing in-app: real markup with the
+   flag sitting in a real HTML comment, styled like any other comment.
+   Desktop players can still use actual DevTools - both paths work. */
+viewSource:function(){
+  var box=document.getElementById('srcBox');
+  if(!box.dataset.filled){
+    var e=function(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    var T=function(s){ return '<span class="tg">'+e(s)+'</span>'; };
+    var A=function(n,v){ return '<span class="at">'+e(n)+'</span>=<span class="st">"'+e(v)+'"</span>'; };
+    var C=function(s){ return '<span class="cm">'+e(s)+'</span>'; };
+    var X=function(s){ return '<span class="tx">'+e(s)+'</span>'; };
+
+    var L=[
+      T('<div ')+A('class','feed')+T('>'),
+      '',
+      '  '+T('<div ')+A('class','post pin')+T('>'),
+      '    '+T('<div ')+A('class','pinTag')+T('>')+X('Pinned by IT')+T('</div>'),
+      '    '+T('<h4>')+X('Employee of the Month')+T('</h4>'),
+      '    '+T('<p>')+X('Congrats to Marcus Webb for shipping the')+' ',
+      '       '+X('auth refactor early! Also - third reminder'),
+      '       '+X('this quarter: don\'t leave notes in the code!!'),
+      '    '+T('</p>'),
+      '  '+T('</div>'),
+      '',
+      '  '+C('<!-- INTERNAL NOTE - DO NOT COMMIT TO PROD'),
+      '  '+C('     Migration checklist for the staging cutover:'),
+      '  '+C('       - rotate the S3 keys before Friday'),
+      '  '+C('       - deprecate /api/v1/legacy_auth'),
+      '  '+C('       - temp admin bypass token is'),
+      '  '+C('         '+FLAGS[3]),
+      '  '+C('       (delete this line before release. -mw)'),
+      '  '+C('-->'),
+      '',
+      '  '+T('<div ')+A('class','post')+T('>'),
+      '    '+T('<h4>')+X('Kitchen Update')+T('</h4>'),
+      '    '+T('<p>')+X('Espresso machine on floor 3 is fixed.')+T('</p>'),
+      '  '+T('</div>'),
+      '',
+      T('</div>')
+    ];
+    box.innerHTML=L.join('\n');
+    box.dataset.filled='1';
+  }
+  this.beep(440,.06);
+  this.go('src','R');
+},
+
 s3:function(){
   var v=document.getElementById('f3').value.trim();
   if(!v){ this.toast('Paste the flag you found.','bad'); return; }
@@ -1002,12 +1097,12 @@ HINTS:{
  2:["The address bar above is editable. It names the exact record being loaded.",
     "You are employee #4471. Admins are made first, so their ID is small. Count down.",
     "Change the ID to <code>1</code> so it reads <code>?id=1</code>, then tap GO."],
- 3:["The flag is not on the screen. It is in what the server <i>sent</i>. Re-read the pinned post.",
-    "Phone: open a new tab and put <code>view-source:</code> before this page's URL. Desktop: F12, or right-click &rarr; View Page Source.",
-    "In the source, search for <code>TCB{</code>. It sits in an HTML comment (starts with <code>&lt;!--</code>) just under the Employee of the Month post."],
- 4:["The button exists, it is just switched off in your browser - not on the server.",
-    "Open DevTools (F12) &rarr; Elements, and find <code>&lt;button id=\"reqAdmin\" disabled&gt;</code>. That one word is the whole security control.",
-    "Delete <code>disabled</code> in the Elements panel and tap it. Or in the Console:<br><code>document.getElementById('reqAdmin').disabled=false</code>"]
+ 3:["The flag is not on the screen. It is in what the server <i>sent</i> - which is more than what it shows. Re-read the pinned post.",
+    "Tap <b>&lt;/&gt; VIEW PAGE SOURCE</b> below to read the raw HTML this page was built from. (On a laptop, F12 or right-click &rarr; View Page Source does the same thing.)",
+    "In the source, look for the greyed-out block starting <code>&lt;!--</code>. That is an HTML comment - it never shows on screen. The flag is on the line after 'temp admin bypass token'."],
+ 4:["The button exists, it is just switched off in your browser - not on the server. The lock is on your side of the wire, so you can pick it.",
+    "Press and <b>hold</b> the bar under the button to inspect it. (On a laptop you can instead open DevTools &rarr; Elements and find <code>&lt;button id=\"reqAdmin\" disabled&gt;</code>.)",
+    "Hold the inspect bar for one second to strip the <code>disabled</code> attribute, then tap the button. Same edit DevTools would make:<br><code>document.getElementById('reqAdmin').disabled=false</code>"]
 },
 hint:function(){
   var s=this.stage; if(!s||s>4) return;
@@ -1054,6 +1149,63 @@ fallbackCopy:function(t,done){
   document.body.removeChild(a);
 }
 };
+
+/* ---------- STAGE 4 LONG-PRESS INSPECTOR ----------
+   iOS cannot open DevTools, so holding the bar removes the real `disabled`
+   attribute from the real button - the same edit, reachable with a thumb.
+   Pointer events cover touch and mouse in one path. */
+(function(){
+  var pk=document.getElementById('picker');
+  var fill=document.getElementById('pkFill');
+  var label=document.getElementById('pkLabel');
+  var btn=document.getElementById('reqAdmin');
+  var raf=null, t0=0, HOLD=1100, done=false;
+
+  function frame(ts){
+    if(!t0) t0=ts;
+    var p=Math.min(1,(ts-t0)/HOLD);
+    fill.style.width=(p*100)+'%';
+    if(p>=1){ unlock(); return; }
+    raf=requestAnimationFrame(frame);
+  }
+  function start(e){
+    if(done) return;
+    e.preventDefault();
+    t0=0; raf=requestAnimationFrame(frame);
+    label.textContent='INSPECTING...';
+    G.beep(300,.05,'square',.03);
+  }
+  function stop(){
+    if(done) return;
+    if(raf) cancelAnimationFrame(raf);
+    raf=null; fill.style.width='0';
+    label.textContent='Hold to inspect this button';
+  }
+  function unlock(){
+    done=true; if(raf) cancelAnimationFrame(raf);
+    fill.style.width='100%';
+    /* The actual DOM edit - identical to deleting the attribute in DevTools. */
+    btn.disabled=false;
+    btn.style.pointerEvents='auto';
+    btn.style.opacity='1';
+    btn.style.cursor='pointer';
+    btn.style.background='var(--acc)';
+    btn.style.color='#1a1005';
+    pk.classList.add('done');
+    label.innerHTML='disabled attribute removed &mdash; now tap the button';
+    G.buzzPhone([30,40,30]);
+    G.beep(880,.1,'sine',.06);
+    G.toast('Restriction removed. Tap the button.','good');
+  }
+
+  if(pk){
+    pk.addEventListener('pointerdown',start);
+    pk.addEventListener('pointerup',stop);
+    pk.addEventListener('pointercancel',stop);
+    pk.addEventListener('pointerleave',stop);
+    pk.addEventListener('contextmenu',function(e){e.preventDefault()});
+  }
+})();
 
 /* ---------- ENTER KEY ---------- */
 document.addEventListener('keydown',function(e){
