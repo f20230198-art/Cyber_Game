@@ -28,10 +28,10 @@ Then generate a QR code pointing at the URL and put it on the projector.
 
 | # | Vulnerability | What the player does | Flag |
 |---|---|---|---|
-| 1 | SQL Injection | Types `' OR '1'='1` into the login form | `TCB{sql_1nj3ct10n_101}` |
-| 2 | IDOR | Edits the fake URL bar to `?id=1` | `TCB{1d0r_c0unt1ng_up_fr0m_0n3}` |
-| 3 | Information Disclosure | Reads the page source and finds the flag in an HTML comment | `TCB{h1dd3n_1n_pl41n_s1ght}` |
-| 4 | Broken Access Control | Strips `disabled` from `#reqAdmin` | `TCB{cl13nt_s1d3_1s_n0t_s3cur1ty}` |
+| 1 | SQL Injection | Types `' OR '1'='1` into the login form | `GDG{sql_1nj3ct10n_101}` |
+| 2 | IDOR | Edits the fake URL bar to `?id=1` | `GDG{1d0r_c0unt1ng_up_fr0m_0n3}` |
+| 3 | Information Disclosure | Reads the page source and finds the flag in an HTML comment | `GDG{h1dd3n_1n_pl41n_s1ght}` |
+| 4 | Broken Access Control | Strips `disabled` from `#reqAdmin` | `GDG{cl13nt_s1d3_1s_n0t_s3cur1ty}` |
 
 Stage 1 accepts nine injection patterns (`' OR 1=1 --`, `admin'--`, `') OR ('1'='1`,
 double-quote variants, comment terminators, etc.), so players who know the technique
