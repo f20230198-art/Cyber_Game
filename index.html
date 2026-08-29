@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14110e">
+<title>TECHCORP // BREACH</title>
+<meta name="description" content="A live cybersecurity CTF. Four vulnerabilities. One mainframe. Can you breach TechCorp?">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128274;</text></svg>">
+
+<!-- ============================================================
+     TECHCORP // BREACH  —  Educational CTF Simulator
+     ALL vulnerabilities here are FAKE and simulated client-side.
+     No real systems, no real data, no real exploits.
+
+     ...psst. Curious one, aren't you?
+     You're already doing Stage 3 right. Keep reading.
+     ============================================================ -->
+
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --bg:#14110e;
+  --bg-2:#1b1713;
+  --panel:#221d18;
+  --panel-2:#2b241d;
+  --line:#3a3128;
+  --line-2:#4a3f33;
+  --txt:#f2ece4;
+  --txt-dim:#a2968a;
+  --txt-faint:#6f6459;
+  --acc:#ff9e3d;
+  --acc-2:#ffc46b;
+  --acc-deep:#c96a1a;
+  --acc-glow:rgba(255,158,61,.4);
+  --acc-wash:rgba(255,158,61,.1);
+  --red:#ff5f52;
+  --ok:#5fd68a;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --bar:52px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);color:var(--txt);font-family:var(--sans);
+  font-size:16px;line-height:1.5;overscroll-behavior:none;
+  position:fixed;inset:0;
+}
+button,input{font-family:inherit;font-size:inherit;color:inherit}
+input{-webkit-appearance:none;border-radius:0}
+::selection{background:var(--acc);color:#14110e}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ============ AMBIENT ============ */
+#glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%,rgba(255,158,61,.13),transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 110%,rgba(201,106,26,.09),transparent 70%)}
+#noise{position:fixed;inset:0;z-index:9997;pointer-events:none;opacity:.4;
+  background:repeating-linear-gradient(180deg,transparent 0 3px,rgba(0,0,0,.16) 3px 4px)}
+#flash{position:fixed;inset:0;z-index:9999;pointer-events:none;opacity:0;background:var(--acc)}
+#flash.go{animation:fla .5s steps(1)}
+@keyframes fla{0%{opacity:.7}14%{opacity:0}30%{opacity:.45}44%{opacity:0}
+  62%{opacity:.2}100%{opacity:0}}
+
+/* ============ TOP BAR ============ */
+#topbar{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  height:calc(var(--bar) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) 14px 0;
+  display:none;align-items:center;gap:10px;
+  background:rgba(20,17,14,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+#topbar.on{display:flex}
+.brand{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;
+  white-space:nowrap}
+.brand b{color:var(--acc)}
+.brand span{color:var(--txt-faint)}
+.dots{display:flex;gap:5px;margin-left:auto}
+.dot{width:22px;height:3px;border-radius:2px;background:var(--line-2);transition:.35s}
+.dot.cur{background:var(--acc);box-shadow:0 0 8px var(--acc-glow)}
+.dot.done{background:var(--acc-deep)}
+#timer{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--acc);
+  min-width:46px;text-align:right;font-variant-numeric:tabular-nums}
+#sndBtn{background:none;border:none;font-size:14px;padding:6px;opacity:.5;cursor:pointer;
+  line-height:1}
+#sndBtn.on{opacity:1}
+
+/* ============ PAGE SYSTEM ============
+   Every page is a fixed viewport-height flex column: a fixed header area,
+   ONE scrollable body only if it overflows, and a pinned action bar.
+   Pages slide horizontally so it reads as navigation, not one long scroll. */
+#app{position:fixed;inset:0;z-index:10}
+.page{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  padding:calc(var(--bar) + env(safe-area-inset-top)) 0 0;
+}
+.page.noBar{padding-top:env(safe-area-inset-top)}
+.page.live{display:flex}
+.page.inR{animation:inR .34s cubic-bezier(.22,.9,.3,1)}
+.page.inL{animation:inL .34s cubic-bezier(.22,.9,.3,1)}
+@keyframes inR{from{opacity:0;transform:translateX(34px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-34px)}to{opacity:1;transform:none}}
+
+/* the only scrolling region on any page */
+.body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 18px 8px;overscroll-behavior:contain}
+.body::-webkit-scrollbar{width:0}
+.inner{max-width:460px;margin:0 auto;width:100%}
+
+/* pinned bottom action bar — always reachable with a thumb */
+.act{
+  flex-shrink:0;padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--line);background:rgba(27,23,19,.94);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.act .inner{display:flex;flex-direction:column;gap:9px}
+
+/* ============ TYPE ============ */
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--acc);
+  text-transform:uppercase;margin-bottom:7px}
+h1.t{font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.15;
+  margin-bottom:7px;text-wrap:balance}
+p.sub{color:var(--txt-dim);font-size:14px;line-height:1.55;margin-bottom:16px}
+
+/* ============ BUTTONS ============ */
+.btn{
+  display:block;width:100%;padding:15px;border:none;border-radius:12px;cursor:pointer;
+  background:var(--acc);color:#1a1005;font-weight:700;font-size:15px;
+  transition:transform .12s,filter .2s;min-height:50px;
+}
+.btn:active{transform:scale(.975);filter:brightness(1.1)}
+.btn.glow{box-shadow:0 0 26px var(--acc-glow)}
+.btn.ghost{background:transparent;color:var(--txt-dim);border:1px solid var(--line-2);
+  font-weight:500}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+
+/* ============ CARDS ============ */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px}
+.corp{text-align:center;margin-bottom:18px}
+.mark{width:46px;height:46px;margin:0 auto 10px;border-radius:12px;
+  background:linear-gradient(140deg,var(--acc),var(--acc-deep));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:18px;color:#1a1005;
+  box-shadow:0 4px 18px rgba(255,158,61,.3)}
+.corp h3{font-size:16px;font-weight:700}
+.corp small{color:var(--txt-faint);font-size:11.5px;font-family:var(--mono)}
+
+/* ============ FIELDS ============ */
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:10.5px;font-family:var(--mono);letter-spacing:.14em;
+  color:var(--txt-faint);text-transform:uppercase;margin-bottom:6px}
+.fld input{
+  width:100%;padding:14px;background:var(--bg-2);border:1px solid var(--line-2);
+  border-radius:11px;font-family:var(--mono);font-size:16px;transition:.2s;
+}
+.fld input:focus{outline:none;border-color:var(--acc);
+  box-shadow:0 0 0 3px var(--acc-wash);background:var(--bg)}
+.fld input::placeholder{color:#544a3f}
+.forgot{display:block;text-align:right;font-size:12.5px;color:var(--txt-faint);
+  margin:2px 0 4px;cursor:pointer;padding:6px 0}
+.err{background:rgba(255,95,82,.1);border:1px solid rgba(255,95,82,.32);color:var(--red);
+  padding:10px 12px;border-radius:10px;font-family:var(--mono);font-size:12px;
+  margin-bottom:12px;display:none;animation:shake .36s}
+.err.show{display:block}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+
+/* ============ BOOT ============ */
+#boot .body{display:flex;align-items:center;justify-content:center}
+#bootIn{width:100%;max-width:460px;font-family:var(--mono);font-size:13px;line-height:1.95}
+.bl{color:var(--txt-dim)}
+.bl.hi{color:var(--acc);font-weight:700}
+.bl.warn{color:var(--red)}
+.cur{display:inline-block;width:8px;height:14px;background:var(--acc);
+  vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+#bootTitle{text-align:center;margin:26px 0 0;opacity:0;transition:opacity .7s}
+#bootTitle.show{opacity:1}
+#bootTitle h1{font-size:clamp(30px,11vw,44px);font-weight:800;letter-spacing:-.035em;
+  line-height:1;color:var(--acc);text-shadow:0 0 34px var(--acc-glow)}
+#bootTitle p{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);
+  letter-spacing:.34em;margin-top:10px}
+#liveCt{font-family:var(--mono);font-size:11px;color:var(--txt-faint);text-align:center;
+  margin-top:8px}
+#liveCt b{color:var(--acc-deep)}
+.pip{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--acc);
+  margin-right:6px;animation:pp 2s infinite;vertical-align:1px}
+@keyframes pp{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ============ URL BAR ============ */
+.browser{background:var(--panel-2);border:1px solid var(--line-2);border-radius:13px;
+  overflow:hidden}
+.bchrome{display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--bg-2);
+  border-bottom:1px solid var(--line)}
+.urlwrap{flex:1;display:flex;align-items:center;gap:6px;background:var(--bg);
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;transition:.2s}
+.urlwrap:focus-within{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc-wash)}
+.lock{font-size:10px;opacity:.5}
+#urlIn{flex:1;background:none;border:none;font-family:var(--mono);font-size:13px;
+  color:var(--txt);min-width:0}
+#urlIn:focus{outline:none}
+.go{background:var(--acc);color:#1a1005;border:none;border-radius:8px;
+  padding:9px 14px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;
+  min-height:36px}
+.go:active{transform:scale(.94)}
+.bbody{padding:16px}
+.prof{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.avatar{width:46px;height:46px;border-radius:12px;flex-shrink:0;
+  background:var(--panel);border:1px solid var(--line-2);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;
+  font-family:var(--mono);color:var(--txt-dim)}
+.avatar.adm{border-color:var(--acc);color:#1a1005;
+  background:linear-gradient(140deg,var(--acc),var(--acc-deep));
+  box-shadow:0 0 20px var(--acc-glow)}
+.prof h4{font-size:16px;font-weight:700}
+.prof small{color:var(--txt-faint);font-family:var(--mono);font-size:11px}
+.rows{border-top:1px solid var(--line)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--line);font-size:13px}
+.row span:first-child{color:var(--txt-faint);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.08em;text-transform:uppercase;padding-top:2px;flex-shrink:0}
+.row span:last-child{text-align:right;font-weight:500}
+.row .lo{color:var(--txt-dim)}
+.row .hi{color:var(--acc);font-family:var(--mono);font-weight:700}
+
+/* ============ FEED ============ */
+.post{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+  padding:15px;margin-bottom:11px}
+.phead{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.pav{width:32px;height:32px;border-radius:9px;background:var(--panel-2);
+  border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0}
+.phead div strong{font-size:13px;display:block}
+.phead div small{color:var(--txt-faint);font-size:10.5px;font-family:var(--mono)}
+.post p{font-size:13.5px;color:var(--txt-dim);line-height:1.6}
+.post.pin{border-color:rgba(255,158,61,.34);background:rgba(255,158,61,.05)}
+.pinTag{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--acc);
+  margin-bottom:8px;text-transform:uppercase}
+.emoji{font-style:normal}
+
+/* ============ SETTINGS ============ */
+.srow{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:13px 0;border-bottom:1px solid var(--line)}
+.srow div strong{display:block;font-size:14px;margin-bottom:2px}
+.srow div small{color:var(--txt-faint);font-size:11.5px;line-height:1.45;display:block}
+.tog{width:48px;height:28px;border-radius:14px;background:var(--line-2);position:relative;
+  flex-shrink:0;transition:.25s;cursor:pointer;border:none}
+.tog::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;
+  border-radius:50%;background:var(--txt-dim);transition:.25s}
+.tog.on{background:var(--acc-deep)}
+.tog.on::after{transform:translateX(20px);background:var(--acc-2)}
+#reqAdmin{
+  width:100%;margin-top:16px;padding:15px;border-radius:12px;font-weight:700;font-size:15px;
+  background:var(--line);color:var(--txt-faint);border:1px solid var(--line-2);
+  cursor:not-allowed;pointer-events:none;opacity:.45;min-height:50px;
+}
+.lockNote{display:flex;gap:9px;align-items:flex-start;margin-top:11px;
+  font-size:12px;color:var(--txt-faint);line-height:1.55}
+
+/* ============ HINT ============ */
+.hintbtn{
+  background:transparent;border:1px solid var(--line-2);color:var(--txt-dim);
+  border-radius:12px;padding:13px;font-size:13.5px;font-weight:500;cursor:pointer;
+  width:100%;min-height:46px;transition:.2s;
+}
+.hintbtn:active{transform:scale(.975)}
+.hintbtn.ready{border-color:var(--acc);color:var(--acc)}
+.hintbox{background:rgba(255,158,61,.07);border:1px solid rgba(255,158,61,.28);
+  border-left:3px solid var(--acc);border-radius:11px;padding:13px;margin-top:12px;
+  font-size:13px;color:var(--acc-2);line-height:1.6;display:none}
+.hintbox.show{display:block;animation:inR .3s}
+.hintbox b{color:var(--acc);font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  display:block;margin-bottom:5px;text-transform:uppercase}
+code{font-family:var(--mono);background:rgba(255,158,61,.14);color:var(--acc-2);
+  padding:2px 6px;border-radius:5px;font-size:.88em;word-break:break-all}
+
+/* ============ FLAG PAGE ============ */
+#win .body{display:flex;align-items:center;justify-content:center;text-align:center}
+.fchk{width:66px;height:66px;margin:0 auto 16px;border-radius:50%;
+  background:linear-gradient(140deg,var(--acc),var(--acc-deep));
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;color:#1a1005;box-shadow:0 0 40px var(--acc-glow);
+  animation:pop .5s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+#win h3{font-family:var(--mono);font-size:11px;letter-spacing:.26em;color:var(--acc);
+  margin-bottom:8px}
+#win h2{font-size:22px;font-weight:800;margin-bottom:7px;letter-spacing:-.02em;
+  text-wrap:balance}
+#win .wsub{color:var(--txt-dim);font-size:13.5px;margin-bottom:16px;line-height:1.55}
+.flagval{font-family:var(--mono);font-size:13.5px;color:var(--acc);background:var(--acc-wash);
+  border:1px dashed rgba(255,158,61,.45);border-radius:11px;padding:13px 11px;
+  margin-bottom:14px;word-break:break-all;font-weight:700}
+.lesson{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:13px;text-align:left;margin-bottom:11px}
+.lesson b{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--txt-faint);
+  display:block;margin-bottom:6px;text-transform:uppercase}
+.lesson p{font-size:13px;color:var(--txt-dim);line-height:1.6}
+
+/* ============ ENDING ============ */
+#end .body{display:flex;align-items:center;justify-content:center;text-align:center}
+.skull{font-size:46px;margin-bottom:10px}
+#end .bigT{font-size:clamp(25px,8.5vw,36px);font-weight:800;line-height:1.08;
+  letter-spacing:-.03em;margin-bottom:10px;color:var(--acc);
+  text-shadow:0 0 34px var(--acc-glow);text-wrap:balance}
+#end .esub{color:var(--txt-dim);font-size:13.5px;line-height:1.55;margin-bottom:20px}
+#shareCard{background:linear-gradient(155deg,var(--panel-2),var(--bg-2));
+  border:1px solid var(--line-2);border-radius:16px;padding:22px 20px;text-align:left;
+  position:relative;overflow:hidden}
+#shareCard::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 82% 0%,rgba(255,158,61,.14),transparent 62%)}
+#shareCard>*{position:relative}
+.sc-brand{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--acc);
+  margin-bottom:12px}
+.sc-t{font-size:18px;font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
+.sc-time{font-family:var(--mono);font-size:40px;font-weight:700;color:var(--acc);
+  line-height:1;font-variant-numeric:tabular-nums}
+.sc-sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--txt-faint);
+  margin-top:7px;text-transform:uppercase}
+.sc-flags{display:flex;gap:6px;margin-top:15px;flex-wrap:wrap}
+.sc-flags i{font-style:normal;font-family:var(--mono);font-size:9.5px;
+  border:1px solid rgba(255,158,61,.4);color:var(--acc);border-radius:6px;padding:4px 8px}
+
+/* recap — its own page, one card at a time */
+.fitem{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--acc);
+  border-radius:12px;padding:15px;text-align:left}
+.fitem .n{font-family:var(--mono);color:var(--acc);font-weight:700;font-size:11px;
+  letter-spacing:.14em;margin-bottom:7px;text-transform:uppercase}
+.fitem strong{display:block;font-size:16px;margin-bottom:7px}
+.fitem p{font-size:13.5px;color:var(--txt-dim);line-height:1.6}
+.pageNum{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);
+  text-align:center;letter-spacing:.14em;margin-top:14px}
+
+/* ============ TOAST ============ */
+#toast{position:fixed;left:50%;top:calc(var(--bar) + env(safe-area-inset-top) + 12px);
+  transform:translate(-50%,-14px);z-index:1100;background:var(--panel);
+  border:1px solid var(--line-2);border-radius:11px;padding:11px 16px;
+  font-family:var(--mono);font-size:12px;opacity:0;transition:.28s;pointer-events:none;
+  max-width:88vw;text-align:center;box-shadow:0 8px 26px rgba(0,0,0,.6)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast.bad{border-color:rgba(255,95,82,.45);color:var(--red)}
+#toast.good{border-color:rgba(255,158,61,.45);color:var(--acc)}
+
+.foot{text-align:center;font-family:var(--mono);font-size:10px;color:#4d443b;
+  margin-top:16px;line-height:1.7}
+
+/* short phones */
+@media(max-height:680px){
+  h1.t{font-size:20px}
+  p.sub{font-size:13px;margin-bottom:12px}
+  .body{padding-top:12px}
+  .skull{font-size:36px;margin-bottom:6px}
+  .sc-time{font-size:34px}
+  .fchk{width:56px;height:56px;font-size:26px;margin-bottom:12px}
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;
+  animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div id="glow"></div>
+<div id="noise"></div>
+<div id="flash"></div>
+
+<!-- ===== TOP BAR ===== -->
+<header id="topbar">
+  <div class="brand"><b>TECHCORP</b> <span>//</span> BREACH</div>
+  <button id="sndBtn" aria-label="Toggle sound">&#128263;</button>
+  <div class="dots">
+    <div class="dot" data-d="1"></div><div class="dot" data-d="2"></div>
+    <div class="dot" data-d="3"></div><div class="dot" data-d="4"></div>
+  </div>
+  <div id="timer">00:00</div>
+</header>
+
+<main id="app">
+
+<!-- ===== BOOT ===== -->
+<section id="boot" class="page live noBar">
+  <div class="body">
+    <div id="bootIn">
+      <div id="bootLines"></div>
+      <div id="bootTitle">
+        <h1>TECHCORP</h1>
+        <p>B R E A C H</p>
+        <div id="liveCt"><span class="pip"></span><b id="ctN">0</b> breached today</div>
+      </div>
+    </div>
+  </div>
+  <div class="act" id="bootAct" style="display:none">
+    <div class="inner">
+      <button class="btn glow" onclick="G.start()">INITIATE BREACH</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STAGE 1 : SQLi ===== -->
+<section id="s1" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="eyebrow">Stage 01 &mdash; Authentication</div>
+      <h1 class="t">The Front Door</h1>
+      <p class="sub">This login form pastes whatever you type straight into a database query. It isn't picky about what you say to it.</p>
+
+      <div class="card">
+        <div class="corp">
+          <div class="mark">TC</div>
+          <h3>TechCorp Internal</h3>
+          <small>portal.techcorp.internal</small>
+        </div>
+        <div class="err" id="s1err"></div>
+        <div class="fld">
+          <label for="u1">Username</label>
+          <input id="u1" type="text" placeholder="j.doe" autocomplete="off"
+                 autocapitalize="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="fld">
+          <label for="p1">Password</label>
+          <input id="p1" type="text" placeholder="password" autocomplete="off"
+                 autocapitalize="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="forgot" onclick="G.toast('IT ticket queue: 4-6 weeks.','bad')">Forgot password?</div>
+      </div>
+      <div class="hintbox" id="h1"></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="btn" id="s1btn" onclick="G.s1()">SIGN IN</button>
+      <button class="hintbtn" id="hb1" onclick="G.hint()">Need a hint?</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STAGE 2 : IDOR ===== -->
+<section id="s2" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="eyebrow">Stage 02 &mdash; Access Control</div>
+      <h1 class="t">Someone Else's Data</h1>
+      <p class="sub">You're in as a contractor. This page loads whoever the address bar says &mdash; and nobody checks whether that's you. The bar is editable.</p>
+
+      <div class="browser">
+        <div class="bchrome">
+          <div class="urlwrap">
+            <span class="lock">&#128274;</span>
+            <input id="urlIn" value="techcorp.internal/profile?id=4471"
+                   autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          </div>
+          <button class="go" onclick="G.s2()">GO</button>
+        </div>
+        <div class="bbody" id="profBody"></div>
+      </div>
+      <div class="hintbox" id="h2"></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="hintbtn" id="hb2" onclick="G.hint()">Need a hint?</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STAGE 3 : RECON ===== -->
+<section id="s3" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="eyebrow">Stage 03 &mdash; Information Disclosure</div>
+      <h1 class="t">Careless Developers</h1>
+      <p class="sub">Nothing on this feed looks like a flag. But developers leave things where users never look.</p>
+
+      <div class="post pin">
+        <div class="pinTag">&#128204; Pinned by IT</div>
+        <div class="phead">
+          <div class="pav"><i class="emoji">&#127942;</i></div>
+          <div><strong>Employee of the Month</strong><small>IT Dept &middot; 2 days ago</small></div>
+        </div>
+        <p>Congrats to <b>Marcus Webb</b> for shipping the auth refactor early! Also &mdash; third reminder this quarter: <b>don't leave notes in the code!!</b> If it's in the page, users can read it. All of it. Including the comments. &mdash; IT</p>
+      </div>
+
+      <!-- INTERNAL NOTE - DO NOT COMMIT TO PROD
+           Migration checklist for the staging cutover:
+             - rotate the S3 keys before Friday
+             - deprecate /api/v1/legacy_auth
+             - temp admin bypass token is TCB{h1dd3n_1n_pl41n_s1ght}
+               (delete this line before release. seriously. -mw)
+      -->
+
+      <div class="post">
+        <div class="phead">
+          <div class="pav"><i class="emoji">&#9749;</i></div>
+          <div><strong>Kitchen Update</strong><small>Facilities &middot; 4 days ago</small></div>
+        </div>
+        <p>Espresso machine on floor 3 is fixed. Please stop putting oat milk in the steam wand. We know who it was.</p>
+      </div>
+
+      <div class="fld" style="margin-top:14px">
+        <label for="f3">Submit recovered flag</label>
+        <input id="f3" type="text" placeholder="TCB{...}" autocomplete="off"
+               autocapitalize="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="hintbox" id="h3"></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="btn" onclick="G.s3()">VERIFY FLAG</button>
+      <button class="hintbtn" id="hb3" onclick="G.hint()">Need a hint?</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STAGE 4 : PRIVESC ===== -->
+<section id="s4" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="eyebrow">Stage 04 &mdash; Privilege Escalation</div>
+      <h1 class="t">The Last Door</h1>
+      <p class="sub">Root lives behind one button. The server would grant it &mdash; but the button is switched off in your browser. The lock is on your side.</p>
+
+      <div class="card">
+        <div class="corp" style="margin-bottom:14px">
+          <div class="mark">TC</div>
+          <h3>Account Settings</h3>
+          <small>m.webb@techcorp.internal</small>
+        </div>
+
+        <div class="srow">
+          <div><strong>Two-factor auth</strong><small>SMS to &middot;&middot;&middot;&middot; 4419</small></div>
+          <button class="tog on" aria-label="Two-factor auth"
+                  onclick="this.classList.toggle('on');G.beep(520,.04)"></button>
+        </div>
+        <div class="srow" style="border-bottom:none">
+          <div><strong>Developer mode</strong><small>Expose internal API responses</small></div>
+          <button class="tog" aria-label="Developer mode"
+                  onclick="this.classList.toggle('on');G.beep(520,.04)"></button>
+        </div>
+
+        <button id="reqAdmin" disabled onclick="G.s4()">REQUEST ROOT ACCESS</button>
+        <div class="lockNote">
+          <i class="emoji">&#128274;</i>
+          <span>Elevation requires <b>Tier-4 clearance</b>. This control is disabled for your account.</span>
+        </div>
+      </div>
+      <div class="hintbox" id="h4"></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="hintbtn" id="hb4" onclick="G.hint()">Need a hint?</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FLAG WIN PAGE (shared) ===== -->
+<section id="win" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="fchk">&#10003;</div>
+      <h3 id="wTag">FLAG CAPTURED</h3>
+      <h2 id="wTitle"></h2>
+      <p class="wsub" id="wSub"></p>
+      <div class="flagval" id="wFlag"></div>
+      <div class="lesson"><b id="wL1">What just happened</b><p id="wB1"></p></div>
+      <div class="lesson"><b>Why it matters</b><p id="wB2"></p></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="btn glow" id="wNext"></button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ENDING ===== -->
+<section id="end" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="skull">&#128128;</div>
+      <div class="bigT">MAINFRAME BREACHED</div>
+      <p class="esub">Full root on TechCorp. Four vulnerabilities, four flags, zero authorization.</p>
+
+      <div id="shareCard">
+        <div class="sc-brand">TECHCORP // BREACH</div>
+        <div class="sc-t">SYSTEM COMPROMISED</div>
+        <div class="sc-time" id="scTime">00:00</div>
+        <div class="sc-sub">Total breach time</div>
+        <div class="sc-flags"><i>SQLi</i><i>IDOR</i><i>RECON</i><i>PRIVESC</i></div>
+      </div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="btn glow" onclick="G.share()">SHARE YOUR RUN</button>
+      <button class="hintbtn" onclick="G.recap(0)">What did I just learn?</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== RECAP (one lesson per page) ===== -->
+<section id="recap" class="page">
+  <div class="body">
+    <div class="inner">
+      <div class="eyebrow" id="rcEyebrow">What you learned</div>
+      <div class="fitem">
+        <div class="n" id="rcN"></div>
+        <strong id="rcT"></strong>
+        <p id="rcP"></p>
+      </div>
+      <div class="pageNum" id="rcNum"></div>
+    </div>
+  </div>
+  <div class="act">
+    <div class="inner">
+      <button class="btn" id="rcNext" onclick="G.recapNext()"></button>
+      <button class="hintbtn" onclick="G.go('end','L')">Back to results</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ==========================================================
+   TECHCORP // BREACH - game engine
+   Everything is simulated. No network calls that matter.
+
+   Hey. If you're reading this in DevTools - good instinct.
+   That IS the skill this whole thing is teaching.
+   But Stage 3's flag is in the HTML, not here. Go look at
+   the page source around the "Employee of the Month" post.
+   ========================================================== */
+'use strict';
+
+var FLAGS = {
+  1:'TCB{sql_1nj3ct10n_101}',
+  2:'TCB{1d0r_c0unt1ng_up_fr0m_0n3}',
+  3:'TCB{h1dd3n_1n_pl41n_s1ght}',
+  4:'TCB{cl13nt_s1d3_1s_n0t_s3cur1ty}'
+};
+
+var G = {
+  stage:0, t0:0, tick:null, snd:false, found:[],
+  hintN:{1:0,2:0,3:0,4:0}, idle:0, idleTick:null, ac:null, rc:0,
+
+/* ---------- audio ---------- */
+beep:function(f,d,type,v){
+  f=f||660; d=d||.07; type=type||'square'; v=v||.05;
+  if(!this.snd) return;
+  try{
+    this.ac = this.ac || new (window.AudioContext||window.webkitAudioContext)();
+    var o=this.ac.createOscillator(), g=this.ac.createGain();
+    o.type=type; o.frequency.value=f;
+    g.gain.setValueAtTime(v,this.ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001,this.ac.currentTime+d);
+    o.connect(g); g.connect(this.ac.destination);
+    o.start(); o.stop(this.ac.currentTime+d);
+  }catch(e){}
+},
+ding:function(){ var s=this; [880,1175,1568].forEach(function(f,i){
+  setTimeout(function(){s.beep(f,.16,'sine',.07)},i*95); }); },
+buzz:function(){ var s=this; this.beep(150,.18,'sawtooth',.06);
+  setTimeout(function(){s.beep(110,.22,'sawtooth',.05)},90); },
+buzzPhone:function(p){ if(navigator.vibrate){ try{navigator.vibrate(p)}catch(e){} } },
+
+/* ---------- ui ---------- */
+toast:function(msg,kind){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='on '+(kind||'');
+  clearTimeout(this._tt); this._tt=setTimeout(function(){t.className=''},2600);
+},
+flash:function(){ var f=document.getElementById('flash'); f.classList.remove('go');
+  void f.offsetWidth; f.classList.add('go'); },
+
+/* Page navigation. dir 'R' slides in from the right (forward),
+   'L' from the left (back). Each page is its own screen. */
+go:function(id,dir){
+  this.flash();
+  var all=document.querySelectorAll('.page');
+  for(var i=0;i<all.length;i++){
+    all[i].classList.remove('live','inR','inL');
+  }
+  var p=document.getElementById(id);
+  p.classList.add('live', dir==='L'?'inL':'inR');
+  var b=p.querySelector('.body');
+  if(b) b.scrollTop=0;
+  this.resetIdle();
+},
+
+/* ---------- timer ---------- */
+fmt:function(ms){ var sec=Math.floor(ms/1000);
+  return String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); },
+startClock:function(){
+  var s=this; this.t0=Date.now();
+  this.tick=setInterval(function(){
+    document.getElementById('timer').textContent=s.fmt(Date.now()-s.t0);
+  },500);
+},
+setStage:function(n){
+  this.stage=n;
+  var d=document.querySelectorAll('.dot');
+  for(var i=0;i<d.length;i++){
+    var k=+d[i].dataset.d;
+    d[i].className='dot'+(k<n?' done':k===n?' cur':'');
+  }
+  this.hintN[n]=0; this.resetIdle();
+},
+resetIdle:function(){
+  this.idle=0;
+  var hb=document.querySelectorAll('.hintbtn');
+  for(var i=0;i<hb.length;i++) hb[i].classList.remove('ready');
+  var h=document.querySelectorAll('.hintbox');
+  for(var j=0;j<h.length;j++) h[j].classList.remove('show');
+},
+
+/* ---------- boot ---------- */
+bootSeq:function(){
+  var s=this;
+  var L=[
+    ['> INITIALIZING BREACH PROTOCOL...',''],
+    ['> TARGET: TECHCORP INTERNAL PORTAL',''],
+    ['> SCANNING ......... 4 VECTORS FOUND',''],
+    ['> AUTHORIZATION: NONE','warn'],
+    ['> BEGIN.','hi']
+  ];
+  var box=document.getElementById('bootLines');
+  var li=0;
+
+  function typeLine(){
+    if(li>=L.length){
+      setTimeout(function(){
+        document.getElementById('bootTitle').classList.add('show');
+        setTimeout(function(){
+          document.getElementById('bootAct').style.display='block';
+          s.counter();
+        },600);
+      },350);
+      return;
+    }
+    var txt=L[li][0], cls=L[li][1];
+    var el=document.createElement('div');
+    el.className='bl '+cls;
+    box.appendChild(el);
+    var ci=0;
+    var t=setInterval(function(){
+      ci++;
+      el.innerHTML=txt.slice(0,ci)+'<span class="cur"></span>';
+      if(ci%2===0) s.beep(1400+Math.random()*400,.012,'square',.012);
+      if(ci>=txt.length){
+        clearInterval(t); el.textContent=txt; li++;
+        setTimeout(typeLine, cls==='hi'?240:100);
+      }
+    },20);
+  }
+  setTimeout(typeLine,380);
+},
+
+counter:function(){
+  /* Simulated, seeded by the date so it reads consistently for everyone
+     in the room and grows through the day. No backend, no third party. */
+  var d=new Date();
+  var seed=(d.getFullYear()*372+d.getMonth()*31+d.getDate());
+  var n=140+(seed*37)%180+Math.floor(d.getHours()*4.5);
+  try{
+    var k='tcb_ct_'+d.toDateString();
+    var prev=+localStorage.getItem(k)||0;
+    if(prev>n) n=prev;
+    localStorage.setItem(k,n);
+  }catch(e){}
+  var el=document.getElementById('ctN');
+  var c=0, step=Math.max(1,Math.round(n/40));
+  var t=setInterval(function(){
+    c=Math.min(n,c+step); el.textContent=c.toLocaleString();
+    if(c>=n) clearInterval(t);
+  },26);
+},
+
+start:function(){
+  var s=this;
+  this.beep(880,.1,'sine',.06);
+  document.getElementById('topbar').classList.add('on');
+  this.startClock();
+  this.setStage(1);
+  this.go('s1','R');
+  this.idleTick=setInterval(function(){
+    s.idle+=1;
+    if(s.idle>=25 && s.stage>=1 && s.stage<=4 && s.hintN[s.stage]<3){
+      var b=document.getElementById('hb'+s.stage);
+      if(b) b.classList.add('ready');
+    }
+  },1000);
+  this.renderProfile(4471);
+},
+
+/* ---------- STAGE 1 : SQLi ---------- */
+s1:function(){
+  var s=this;
+  var u=document.getElementById('u1').value;
+  var p=document.getElementById('p1').value;
+  var e=document.getElementById('s1err');
+  var blob=u+' '+p;
+
+  /* Classic tautology-injection patterns. Pattern matching on a string in
+     the browser - there is no database anywhere in this app. */
+  var SQLI=[
+    /'\s*or\s*'?1'?\s*=\s*'?1/i,
+    /'\s*or\s*1\s*=\s*1/i,
+    /"\s*or\s*"?1"?\s*=\s*"?1/i,
+    /'\s*or\s*'[^']*'\s*=\s*'[^']*/i,
+    /\bor\b\s+1\s*=\s*1/i,
+    /'\s*(--|#|\/\*)/,
+    /'\s*or\s+true/i,
+    /\badmin'\s*(--|#)/i,
+    /'\s*\)\s*or\s*\(?\s*'?1/i
+  ];
+
+  var hit=SQLI.some(function(r){ return r.test(blob); });
+
+  if(hit){
+    e.classList.remove('show');
+    var b=document.getElementById('s1btn');
+    b.textContent='QUERY EXECUTING...'; b.disabled=true;
+    this.beep(300,.1,'square',.04);
+    setTimeout(function(){
+      b.textContent='SIGN IN'; b.disabled=false;
+      s.win(1,'Access Granted','Authentication bypassed',
+        'The query became <code>WHERE user=\'\' OR \'1\'=\'1\'</code> - always true, so the database returned the first account it had.',
+        'Your text was pasted into a SQL query instead of passed as data. The quote closed the string; everything after it ran as code.');
+    },850);
+  } else {
+    if(!u && !p){ this.toast('Enter something. Anything.','bad'); return; }
+    e.textContent='> AUTH FAILED: bad credentials for "'+(u||'null').slice(0,18)+'"';
+    e.classList.add('show'); this.buzz(); this.buzzPhone(60);
+  }
+},
+
+/* ---------- STAGE 2 : IDOR ---------- */
+PROFILES:{
+  4471:{n:'Jordan Reyes',i:'JR',r:'External Contractor',d:'Vendor Services',
+        c:'Tier 1 - Restricted',em:'j.reyes@ext.techcorp.internal',adm:false},
+  1:{n:'SYSTEM ADMIN',i:'SA',r:'Root Operator',d:'Infrastructure / Core',
+     c:'Tier 4 - Unrestricted',em:'root@techcorp.internal',adm:true}
+},
+renderProfile:function(id){
+  var b=document.getElementById('profBody');
+  var P=this.PROFILES[id];
+  var pad=String(id).replace('-','').padStart(4,'0');
+  if(P){
+    b.innerHTML=
+      '<div class="prof">'+
+        '<div class="avatar '+(P.adm?'adm':'')+'">'+P.i+'</div>'+
+        '<div><h4 style="'+(P.adm?'color:var(--acc)':'')+'">'+P.n+'</h4>'+
+        '<small>EMP #'+pad+'</small></div>'+
+      '</div>'+
+      '<div class="rows">'+
+        '<div class="row"><span>Role</span><span class="'+(P.adm?'hi':'lo')+'">'+P.r+'</span></div>'+
+        '<div class="row"><span>Dept</span><span class="lo">'+P.d+'</span></div>'+
+        '<div class="row"><span>Clearance</span><span class="'+(P.adm?'hi':'lo')+'">'+P.c+'</span></div>'+
+        '<div class="row" style="border-bottom:none"><span>Email</span>'+
+        '<span class="lo" style="font-family:var(--mono);font-size:11px">'+P.em+'</span></div>'+
+      '</div>';
+  } else {
+    b.innerHTML=
+      '<div class="prof"><div class="avatar">??</div>'+
+      '<div><h4 style="color:var(--txt-dim)">Record not found</h4>'+
+      '<small>EMP #'+pad+'</small></div></div>'+
+      '<div class="rows"><div class="row" style="border-bottom:none">'+
+      '<span>Status</span><span class="lo">No employee matches this ID</span></div></div>';
+  }
+},
+s2:function(){
+  var s=this;
+  var v=document.getElementById('urlIn').value;
+  var m=v.match(/id=(-?\d+)/i);
+  if(!m){ this.toast('Expected ?id=<number>','bad'); this.buzz(); return; }
+  var id=parseInt(m[1],10);
+  this.renderProfile(id);
+  this.beep(500,.05);
+  document.getElementById('urlIn').blur();
+
+  if(id===1||id===0){
+    setTimeout(function(){
+      s.win(2,'Admin Record Exposed','You are reading root\'s profile',
+        'The server never asked <i>should this user see record #1?</i> - only <i>which record?</i>, then handed it over.',
+        'This is IDOR. Logging in proved who you are; authorisation should decide what you can reach. That second check does not exist here.');
+    },500);
+  } else if(id>1 && id<=12){
+    this.toast('Getting warmer. Go lower.','good');
+  }
+},
+
+/* ---------- STAGE 3 : RECON ---------- */
+s3:function(){
+  var v=document.getElementById('f3').value.trim();
+  if(!v){ this.toast('Paste the flag you found.','bad'); return; }
+  if(v.toLowerCase()===FLAGS[3].toLowerCase()){
+    this.win(3,'Flag Verified','Credential recovered from source',
+      'A developer left an admin bypass token in an HTML comment. Invisible on the page - shipped to every visitor in plain text.',
+      'View Source shows exactly what the server sent. Anything the browser receives, the user owns. Comments are not a hiding place.');
+  } else {
+    this.buzz(); this.buzzPhone(60);
+    this.toast('Not it. The flag IS on this page - just not visible.','bad');
+  }
+},
+
+/* ---------- STAGE 4 : PRIVESC ---------- */
+s4:function(){
+  var s=this;
+  var b=document.getElementById('reqAdmin');
+  /* Guard: only fires once the player has actually re-enabled the control. */
+  if(b.disabled) return;
+  b.textContent='ESCALATING...';
+  b.style.background='var(--acc)'; b.style.color='#1a1005'; b.style.opacity='1';
+  this.beep(320,.12,'square',.05);
+  setTimeout(function(){
+    b.textContent='ROOT GRANTED';
+    s.win(4,'Root Access Granted','Privilege escalation complete',
+      'The restriction was a <code>disabled</code> attribute in your own browser. You removed it, the click fired, and root was granted.',
+      'Broken access control. Hiding or disabling a control in the UI is cosmetic - the server must verify permission on every request it acts on.');
+  },800);
+},
+
+/* ---------- WIN PAGE ---------- */
+win:function(n,title,subtitle,body,why){
+  if(this.found.indexOf(n)!==-1) return;
+  this.found.push(n);
+  this.ding(); this.buzzPhone([40,50,40,50,110]);
+
+  document.getElementById('wTag').textContent='FLAG 0'+n+' CAPTURED';
+  document.getElementById('wTitle').textContent=title;
+  document.getElementById('wSub').textContent=subtitle;
+  document.getElementById('wFlag').textContent=FLAGS[n];
+  document.getElementById('wB1').innerHTML=body;
+  document.getElementById('wB2').innerHTML=why;
+  var b=document.getElementById('wNext');
+  b.textContent = n<4 ? 'CONTINUE TO STAGE 0'+(n+1) : 'FINISH THE BREACH';
+  b.onclick=function(){ G.next(n); };
+  this.go('win','R');
+},
+next:function(n){
+  var s=this;
+  this.beep(700,.06);
+  if(n<4){
+    this.setStage(n+1);
+    this.go('s'+(n+1),'R');
+  }else{
+    clearInterval(this.tick); clearInterval(this.idleTick);
+    var ms=Date.now()-this.t0;
+    var d=document.querySelectorAll('.dot');
+    for(var i=0;i<d.length;i++) d[i].className='dot done';
+    document.getElementById('scTime').textContent=this.fmt(ms);
+    this.go('end','R');
+    setTimeout(function(){ s.flash(); s.ding(); s.buzzPhone([70,60,70,60,220]); },400);
+    try{ var dt=new Date(), k='tcb_ct_'+dt.toDateString();
+      localStorage.setItem(k,(+localStorage.getItem(k)||0)+1); }catch(e){}
+  }
+},
+
+/* ---------- RECAP: one lesson per page ---------- */
+LESSONS:[
+ ['Vulnerability 01','SQL Injection',
+  'Your input got glued into a database query. Typing <code>\' OR \'1\'=\'1</code> changed the question from "is this password right?" to "is anything true?" - and something always is. <b>Real fix:</b> parameterised queries, so input is never treated as code.'],
+ ['Vulnerability 02','IDOR',
+  'The app fetched whatever record ID you asked for without checking it was yours. One number in a URL walked you into an admin account. <b>Real fix:</b> authorise every request against the logged-in user, not just the login.'],
+ ['Vulnerability 03','Information Disclosure',
+  'A developer left a credential in an HTML comment. Comments are invisible on the page but shipped to every visitor in plain text. <b>Real fix:</b> secrets live in environment config, never in anything the client downloads.'],
+ ['Vulnerability 04','Broken Access Control',
+  'The "disabled" button was only disabled in your browser. Deleting one attribute sent the request anyway. <b>Real fix:</b> the client is a suggestion box - the server must re-check permissions on every action.'],
+ ['The takeaway','Never Trust The Client',
+  'Every bug you just exploited comes from one mistake: <b>trusting the browser</b>. It is fully under the attacker\'s control. Anything enforced only there - a pattern check, a hidden field, a disabled button - is decoration, not security.']
+],
+recap:function(i){
+  this.rc=i;
+  var L=this.LESSONS[i];
+  document.getElementById('rcN').textContent=L[0];
+  document.getElementById('rcT').textContent=L[1];
+  document.getElementById('rcP').innerHTML=L[2];
+  document.getElementById('rcNum').textContent=(i+1)+' / '+this.LESSONS.length;
+  document.getElementById('rcNext').textContent=
+    i<this.LESSONS.length-1 ? 'NEXT' : 'DONE';
+  this.go('recap','R');
+},
+recapNext:function(){
+  if(this.rc<this.LESSONS.length-1) this.recap(this.rc+1);
+  else this.go('end','L');
+},
+
+/* ---------- HINTS ---------- */
+HINTS:{
+ 1:["This form pastes your text straight into a database question. What if your text contained part of the question?",
+    "A single quote <code>'</code> ends the text the database expected - everything after it is read as instructions. Try starting the username with one.",
+    "Type <code>' OR '1'='1</code> in the username and anything in the password."],
+ 2:["The address bar above is editable. It names the exact record being loaded.",
+    "You are employee #4471. Admins are made first, so their ID is small. Count down.",
+    "Change the ID to <code>1</code> so it reads <code>?id=1</code>, then tap GO."],
+ 3:["The flag is not on the screen. It is in what the server <i>sent</i>. Re-read the pinned post.",
+    "Phone: open a new tab and put <code>view-source:</code> before this page's URL. Desktop: F12, or right-click &rarr; View Page Source.",
+    "In the source, search for <code>TCB{</code>. It sits in an HTML comment (starts with <code>&lt;!--</code>) just under the Employee of the Month post."],
+ 4:["The button exists, it is just switched off in your browser - not on the server.",
+    "Open DevTools (F12) &rarr; Elements, and find <code>&lt;button id=\"reqAdmin\" disabled&gt;</code>. That one word is the whole security control.",
+    "Delete <code>disabled</code> in the Elements panel and tap it. Or in the Console:<br><code>document.getElementById('reqAdmin').disabled=false</code>"]
+},
+hint:function(){
+  var s=this.stage; if(!s||s>4) return;
+  var box=document.getElementById('h'+s);
+  var btn=document.getElementById('hb'+s);
+  if(this.hintN[s]>=3){ this.toast('No hints left - you have the answer.'); return; }
+  var txt=this.HINTS[s][this.hintN[s]];
+  this.hintN[s]++;
+  box.innerHTML='<b>Hint '+this.hintN[s]+' of 3</b>'+txt;
+  box.classList.add('show');
+  this.beep(600,.07,'sine',.05);
+  this.idle=0;
+  if(btn){
+    btn.classList.remove('ready');
+    btn.textContent = this.hintN[s]>=3 ? 'That was the last hint' : 'Another hint?';
+  }
+  box.scrollIntoView({behavior:'smooth',block:'nearest'});
+},
+
+/* ---------- SHARE ---------- */
+share:function(){
+  var t=this.fmt(Date.now()-this.t0);
+  var txt='I just breached TECHCORP in '+t+'\n\n'+
+    'SQL Injection / IDOR / Information Disclosure / Broken Access Control\n\n'+
+    '4/4 flags captured. #TechCorpBreach';
+  var s=this;
+  if(navigator.share){
+    navigator.share({title:'TECHCORP // BREACH',text:txt}).catch(function(){s.copy(txt)});
+  } else this.copy(txt);
+},
+copy:function(t){
+  var s=this;
+  var done=function(){ s.toast('Copied to clipboard','good'); s.beep(880,.08,'sine',.05); };
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(t).then(done).catch(function(){s.fallbackCopy(t,done)});
+  } else this.fallbackCopy(t,done);
+},
+fallbackCopy:function(t,done){
+  var a=document.createElement('textarea');
+  a.value=t; a.style.position='fixed'; a.style.opacity='0';
+  document.body.appendChild(a); a.focus(); a.select();
+  try{ document.execCommand('copy'); done(); }
+  catch(e){ this.toast('Screenshot this to share it!'); }
+  document.body.removeChild(a);
+}
+};
+
+/* ---------- ENTER KEY ---------- */
+document.addEventListener('keydown',function(e){
+  if(e.key.length===1||e.key==='Backspace') G.beep(1500+Math.random()*500,.012,'square',.014);
+  if(e.key==='Enter'){
+    var a=document.activeElement;
+    if(a.id==='u1'||a.id==='p1') G.s1();
+    else if(a.id==='urlIn') G.s2();
+    else if(a.id==='f3') G.s3();
+  }
+});
+document.addEventListener('input',function(){ G.idle=0; },true);
+document.addEventListener('click',function(){ G.idle=0; },true);
+
+/* ---------- SOUND ---------- */
+document.getElementById('sndBtn').onclick=function(){
+  G.snd=!G.snd;
+  this.innerHTML=G.snd?'&#128266;':'&#128263;';
+  this.classList.toggle('on',G.snd);
+  if(G.snd){ G.beep(880,.08,'sine',.06); G.toast('Sound on','good'); }
+};
+
+/* ---------- STAGE 3 BREADCRUMBS ---------- */
+console.log('%cTECHCORP // BREACH','color:#ff9e3d;font:700 24px monospace');
+console.log('%cNice - you opened the console. That instinct is the whole point.','color:#a2968a;font:13px monospace');
+console.log('%cStage 3: the flag is NOT in this script. It is in the page source,\nin an HTML comment under the "Employee of the Month" post.\nElements tab, or view-source: - search for TCB{','color:#ffc46b;font:12px monospace');
+console.log('%cEverything here is simulated. No real systems, no real data.','color:#6f6459;font:11px monospace');
+
+window.__TECHCORP_INTERNAL__ = {
+  build:'4.2.1-prod', region:'us-east-1',
+  notes:'internal_notes.json moved to comment block in index.html - see EOTM post',
+  todo:['rotate S3 keys','kill /api/v1/legacy_auth','strip debug comments before release']
+};
+
+G.bootSeq();
+</script>
+</body>
+</html>
